@@ -13,6 +13,7 @@ test('Upload & Analyze APIs Test Suite', async (t) => {
   process.env.SESSION_SECRET = 'test_secret';
   const { default: app, parsers } = await import('../server.js');
   const server = app.listen(3002);
+  let completedRecordId = null;
 
   // Mock parsers for testing
   parsers.pdf = async (buf) => buf.toString('utf-8');
@@ -426,12 +427,46 @@ test('Upload & Analyze APIs Test Suite', async (t) => {
       assert.strictEqual(statusRes.status, 200);
       if (statusData.status === 'completed') {
         completed = true;
+        completedRecordId = recordId;
         assert.strictEqual(statusData.result.overall_score, 85);
         assert.strictEqual(statusData.result.stats.content_integrity, 95);
         break;
       }
     }
     assert.ok(completed, 'Analysis should complete with mock fallback');
+  });
+
+  await t.test('GET /api/analyze/download/report/:recordId - Download Markdown report', async () => {
+    assert.ok(completedRecordId, 'Should have a completed record ID');
+    const res = await fetch(`http://localhost:3002/api/analyze/download/report/${completedRecordId}`);
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.headers.get('content-type'), 'text/markdown; charset=utf-8');
+    assert.strictEqual(res.headers.get('content-disposition'), `attachment; filename="analysis-report-${completedRecordId}.md"`);
+    const text = await res.text();
+    assert.match(text, /简历分析报告/);
+    assert.match(text, /resume\.txt/);
+    assert.match(text, /85/);
+    assert.match(text, /30秒总评/);
+    assert.match(text, /内容完整度/);
+    assert.match(text, /量化指标/);
+  });
+
+  await t.test('GET /api/analyze/download/docx/:recordId - Download optimized resume text', async () => {
+    assert.ok(completedRecordId, 'Should have a completed record ID');
+    const res = await fetch(`http://localhost:3002/api/analyze/download/docx/${completedRecordId}`);
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.headers.get('content-type'), 'text/plain; charset=utf-8');
+    assert.strictEqual(res.headers.get('content-disposition'), `attachment; filename="optimized-resume-${completedRecordId}.txt"`);
+    const text = await res.text();
+    assert.match(text, /优化后的简历/);
+  });
+
+  await t.test('GET /api/analyze/download/... - Non-existent or incomplete recordId returns 404', async () => {
+    const resReport404 = await fetch('http://localhost:3002/api/analyze/download/report/non-existent-id');
+    assert.strictEqual(resReport404.status, 404);
+
+    const resDocx404 = await fetch('http://localhost:3002/api/analyze/download/docx/non-existent-id');
+    assert.strictEqual(resDocx404.status, 404);
   });
 
   server.close();

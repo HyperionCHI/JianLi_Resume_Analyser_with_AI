@@ -340,6 +340,77 @@ app.get('/api/analyze/status/:recordId', (req, res) => {
   });
 });
 
+// 7. 导出 Markdown 报告接口
+app.get('/api/analyze/download/report/:recordId', (req, res) => {
+  const { recordId } = req.params;
+  const record = getRecord(recordId);
+  if (!record || record.status !== 'completed') {
+    return res.status(404).json({ success: false, message: '未找到该分析记录或分析未完成' });
+  }
+
+  let result;
+  try {
+    result = JSON.parse(record.analysis_result_json);
+  } catch (err) {
+    return res.status(500).json({ success: false, message: '解析分析结果失败' });
+  }
+
+  const filename = record.resume_filename || 'resume.pdf';
+  const overallScore = result.overall_score || 0;
+  const verdict = result.verdict_30s || '';
+  const stats = result.stats || {};
+  const issues = result.issues || [];
+
+  let markdown = `# 简历分析报告\n\n`;
+  markdown += `- **简历文件名**: ${filename}\n`;
+  markdown += `- **总评分**: ${overallScore} 分\n\n`;
+  markdown += `## 30秒总评\n${verdict}\n\n`;
+  
+  markdown += `## 评估维度\n`;
+  markdown += `- **内容完整度**: ${stats.content_integrity || 0}%\n`;
+  markdown += `- **表达清晰度**: ${stats.expression_clarity || 0}%\n`;
+  markdown += `- **经历质量**: ${stats.experience_quality || 0}%\n`;
+  markdown += `- **关键词匹配度**: ${stats.keyword_coverage || 0}%\n\n`;
+
+  markdown += `## 问题诊断与改进建议\n`;
+  if (issues.length > 0) {
+    issues.forEach(issue => {
+      markdown += `### ❌ ${issue.title || '改进项'}\n`;
+      markdown += `- **产生影响**: ${issue.impact || ''}\n`;
+      markdown += `- **修改前 (Before)**:\n  \`\`\`\n  ${issue.before || ''}\n  \`\`\`\n`;
+      markdown += `- **修改后 (After)**:\n  \`\`\`\n  ${issue.after || ''}\n  \`\`\`\n\n`;
+    });
+  } else {
+    markdown += `暂无明显硬伤，表现良好！\n`;
+  }
+
+  res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="analysis-report-${recordId}.md"`);
+  return res.send(markdown);
+});
+
+// 8. 导出优化后的文本简历
+app.get('/api/analyze/download/docx/:recordId', (req, res) => {
+  const { recordId } = req.params;
+  const record = getRecord(recordId);
+  if (!record || record.status !== 'completed') {
+    return res.status(404).json({ success: false, message: '未找到该分析记录或分析未完成' });
+  }
+
+  let result;
+  try {
+    result = JSON.parse(record.analysis_result_json);
+  } catch (err) {
+    return res.status(500).json({ success: false, message: '解析分析结果失败' });
+  }
+
+  const optimizedText = result.optimized_resume_text || '';
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="optimized-resume-${recordId}.txt"`);
+  return res.send(optimizedText);
+});
+
 // 托管静态文件 (将 public 目录作为静态托管)
 app.use(express.static('public'));
 
