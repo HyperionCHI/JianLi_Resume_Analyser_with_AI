@@ -1,21 +1,19 @@
 {
-  "name": "resume",
+  "name": "jianli-resume-analyzer",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/*.test.js"
+  },
   "dependencies": {
-    "axios": "^1.17.0",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "mammoth": "^1.12.0",
-    "multer": "^2.1.1",
-    "pdf-parse": "^2.4.5"
+    "better-sqlite3": "^11.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "mammoth": "^1.7.2",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.52.0",
+    "pdf-parse": "^1.1.1"
   }
 }
