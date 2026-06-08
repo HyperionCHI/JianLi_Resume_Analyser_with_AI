@@ -6,6 +6,7 @@ import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import crypto from 'crypto';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { initDb, registerUser, loginUser, getUserCredits, deductCreditsAndCreateRecord, updateRecord, getRecord } from './database.js';
 import { defaultMockResult } from './mockData.js';
 import { OpenAI } from 'openai';
@@ -415,8 +416,8 @@ app.get('/api/analyze/download/docx/:recordId', (req, res) => {
 app.use(express.static('public'));
 
 // 启动服务 (仅在非测试环境下监听端口)
-if (process.env.NODE_ENV !== 'test' && import.meta.url === `file://${process.argv[1]}`) {
-  const PORT = process.env.PORT || 3000;
+if (process.env.NODE_ENV !== 'test' && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  const PORT = process.env.PORT || 3005;
   app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);
   });
