@@ -11,8 +11,12 @@ test('Upload & Analyze APIs Test Suite', async (t) => {
   process.env.PORT = '3002';
   process.env.NODE_ENV = 'test';
   process.env.SESSION_SECRET = 'test_secret';
-  const { default: app } = await import('../server.js');
+  const { default: app, parsers } = await import('../server.js');
   const server = app.listen(3002);
+
+  // Mock parsers for testing
+  parsers.pdf = async (buf) => buf.toString('utf-8');
+  parsers.docx = async (buf) => buf.toString('utf-8');
 
   await t.test('POST /api/analyze/upload - Upload text resume successfully', async () => {
     // 模拟 multipart/form-data 上传一个简易的 txt 简历
@@ -331,6 +335,61 @@ test('Upload & Analyze APIs Test Suite', async (t) => {
     });
     const finalStatusData = await finalStatusRes.json();
     assert.strictEqual(finalStatusData.credits, initialCredits);
+  });
+
+  // 6. 文件大小超限测试 (LIMIT_FILE_SIZE)
+  await t.test('POST /api/analyze/upload - Upload file exceeding 5MB limit should fail', async () => {
+    const boundary = '----TestBoundary';
+    const largeContent = 'a'.repeat(5 * 1024 * 1024 + 1024);
+    const bodyLarge = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="resume"; filename="resume.txt"',
+      'Content-Type: text/plain',
+      '',
+      largeContent,
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="jds"',
+      '',
+      JSON.stringify([{ title: 'PM', jd: 'Manage products' }]),
+      `--${boundary}--`
+    ].join('\r\n');
+
+    const resLarge = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body: bodyLarge
+    });
+    
+    assert.strictEqual(resLarge.status, 400);
+    const dataLarge = await resLarge.json();
+    assert.match(dataLarge.message, /超过 5MB/i);
+  });
+
+  // 7. jds 格式非数组校验测试
+  await t.test('POST /api/analyze/upload - Upload with non-array jds should fail', async () => {
+    const boundary = '----TestBoundary';
+    const bodyInvalidJds = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="resume"; filename="resume.txt"',
+      'Content-Type: text/plain',
+      '',
+      'Resume content',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="jds"',
+      '',
+      JSON.stringify({ title: 'PM', jd: 'Manage products' }),
+      `--${boundary}--`
+    ].join('\r\n');
+
+    const resInvalid = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body: bodyInvalidJds
+    });
+
+    assert.strictEqual(resInvalid.status, 400);
+    const dataInvalid = await resInvalid.json();
+    assert.match(dataInvalid.message, /必须是数组/i);
   });
 
   server.close();

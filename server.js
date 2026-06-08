@@ -5,7 +5,13 @@ import multer from 'multer';
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import crypto from 'crypto';
-import { initDb, registerUser, loginUser, getUserCredits, createRecord, deductCredits } from './database.js';
+import path from 'path';
+import { initDb, registerUser, loginUser, getUserCredits, deductCreditsAndCreateRecord } from './database.js';
+
+export const parsers = {
+  pdf: (buffer) => pdfParse(buffer).then(p => p.text),
+  docx: (buffer) => mammoth.extractRawText({ buffer }).then(p => p.value)
+};
 
 dotenv.config();
 
@@ -15,7 +21,10 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage }).single('resume');
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }
+}).single('resume');
 
 const app = express();
 app.use(express.json());
@@ -98,105 +107,98 @@ function triggerBackgroundAnalysis(recordId) {
 }
 
 // 5. 简历上传与分析初始化路由
-app.post('/api/analyze/upload', (req, res) => {
-  upload(req, res, async (err) => {
-    if (err) {
-      return res.status(400).json({ success: false, message: '文件上传失败: ' + err.message });
-    }
-    
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: '未找到上传的简历文件' });
-    }
-
-    // 解析 JDs
-    let jds = [];
-    if (req.body.jds) {
-      try {
-        jds = JSON.parse(req.body.jds);
-      } catch (e) {
-        return res.status(400).json({ success: false, message: '无效的 job descriptions 格式' });
+app.post('/api/analyze/upload', (req, res, next) => {
+  upload(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, message: '文件大小不能超过 5MB' });
       }
+      return res.status(400).json({ success: false, message: `上传错误: ${err.message}` });
+    } else if (err) {
+      return res.status(500).json({ success: false, message: '文件上传失败' });
     }
-
-    // 1. 先校验额度是否充足 (先不实际扣减)
-    const requiredCredits = 10 + jds.length * 10;
-    if (req.session.user) {
-      const userId = req.session.user.userId;
-      const currentCredits = getUserCredits(userId);
-      if (currentCredits < requiredCredits) {
-        return res.status(403).json({ success: false, message: '积分不足' });
-      }
-    } else {
-      if (!req.session.free_attempts || req.session.free_attempts <= 0) {
-        return res.status(403).json({ success: false, message: '免费额度已达上限' });
-      }
-    }
-
-    // 2. 提取文本（PDF/Word/Text）
-    let resumeText = '';
-    const ext = req.file.originalname.split('.').pop().toLowerCase();
-    try {
-      if (ext === 'pdf') {
-        try {
-          const parsed = await pdfParse(req.file.buffer);
-          resumeText = parsed.text;
-        } catch (pdfErr) {
-          if (process.env.NODE_ENV === 'test') {
-            resumeText = req.file.buffer.toString('utf-8');
-          } else {
-            throw pdfErr;
-          }
-        }
-      } else if (ext === 'docx') {
-        try {
-          const parsed = await mammoth.extractRawText({ buffer: req.file.buffer });
-          resumeText = parsed.value;
-        } catch (docxErr) {
-          if (process.env.NODE_ENV === 'test') {
-            resumeText = req.file.buffer.toString('utf-8');
-          } else {
-            throw docxErr;
-          }
-        }
-      } else {
-        resumeText = req.file.buffer.toString('utf-8');
-      }
-    } catch (parseErr) {
-      return res.status(400).json({ success: false, message: '解析文件失败: ' + parseErr.message });
-    }
-
-    // 校验解析出的文本是否为空
-    if (!resumeText || !resumeText.trim()) {
-      return res.status(400).json({ success: false, message: '解析出的简历文本为空' });
-    }
-
-    // 3. 文本解析成功后，执行实际扣减操作
-    if (req.session.user) {
-      const userId = req.session.user.userId;
-      const success = deductCredits(userId, requiredCredits);
-      if (!success) {
-        return res.status(403).json({ success: false, message: '积分不足' });
-      }
-    } else {
-      req.session.free_attempts -= 1;
-    }
-
-    // 创建分析记录
-    const recordId = crypto.randomUUID();
-    const userId = req.session.user ? req.session.user.userId : null;
-    const sessionId = req.sessionID;
-    const filename = req.file.originalname;
-
-    const created = createRecord(recordId, userId, sessionId, filename, resumeText, JSON.stringify(jds));
-    if (!created) {
-      return res.status(500).json({ success: false, message: '创建分析记录失败' });
-    }
-
-    // 4. 启动后台分析并返回
-    triggerBackgroundAnalysis(recordId);
-
-    return res.json({ success: true, recordId });
+    next();
   });
+}, async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: '未找到上传的简历文件' });
+  }
+
+  // 解析 JDs
+  let jds = [];
+  if (req.body.jds) {
+    try {
+      jds = JSON.parse(req.body.jds);
+    } catch (e) {
+      return res.status(400).json({ success: false, message: '无效的 job descriptions 格式' });
+    }
+  }
+  if (!Array.isArray(jds)) {
+    return res.status(400).json({ success: false, message: 'job descriptions 必须是数组' });
+  }
+
+  // 1. 先校验额度是否充足 (先不实际扣减)
+  const requiredCredits = 10 + jds.length * 10;
+  if (req.session.user) {
+    const userId = req.session.user.userId;
+    const currentCredits = getUserCredits(userId);
+    if (currentCredits < requiredCredits) {
+      return res.status(403).json({ success: false, message: '积分不足' });
+    }
+  } else {
+    if (!req.session.free_attempts || req.session.free_attempts <= 0) {
+      return res.status(403).json({ success: false, message: '免费额度已达上限' });
+    }
+  }
+
+  // 2. 提取文本（PDF/Word/Text）
+  let resumeText = '';
+  const ext = path.extname(req.file.originalname).toLowerCase();
+  try {
+    if (ext === '.pdf') {
+      resumeText = await parsers.pdf(req.file.buffer);
+    } else if (ext === '.docx') {
+      resumeText = await parsers.docx(req.file.buffer);
+    } else {
+      resumeText = req.file.buffer.toString('utf-8');
+    }
+  } catch (parseErr) {
+    return res.status(400).json({ success: false, message: '解析文件失败: ' + parseErr.message });
+  }
+
+  // 校验解析出的文本是否为空
+  if (!resumeText || !resumeText.trim()) {
+    return res.status(400).json({ success: false, message: '解析出的简历文本为空' });
+  }
+
+  // 3. 文本解析成功后，执行实际扣减操作与创建记录（原子化）
+  const recordId = crypto.randomUUID();
+  const userId = req.session.user ? req.session.user.userId : null;
+  const sessionId = req.sessionID;
+  const filename = req.file.originalname;
+
+  if (userId) {
+    const result = deductCreditsAndCreateRecord(userId, requiredCredits, recordId, sessionId, filename, resumeText, JSON.stringify(jds));
+    if (!result.success) {
+      if (result.error === 'INSUFFICIENT_CREDITS') {
+        return res.status(403).json({ success: false, message: '积分不足' });
+      }
+      return res.status(500).json({ success: false, message: '创建分析记录失败: ' + result.error });
+    }
+  } else {
+    // 未登录用户
+    req.session.free_attempts -= 1;
+    const result = deductCreditsAndCreateRecord(null, 0, recordId, sessionId, filename, resumeText, JSON.stringify(jds));
+    if (!result.success) {
+      req.session.free_attempts += 1; // 恢复额度
+      return res.status(500).json({ success: false, message: '创建分析记录失败: ' + result.error });
+    }
+  }
+
+  // 4. 启动后台分析并返回
+  triggerBackgroundAnalysis(recordId);
+
+  return res.json({ success: true, recordId });
 });
 
 // 托管静态文件 (将 public 目录作为静态托管)

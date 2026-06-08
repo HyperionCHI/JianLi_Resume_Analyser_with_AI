@@ -133,6 +133,35 @@ export function getHistory(userId) {
   }
 }
 
+export function deductCreditsAndCreateRecord(userId, amount, recordId, sessionId, filename, text, jdsJson) {
+  const transaction = db.transaction(() => {
+    if (userId) {
+      const checkStmt = db.prepare('SELECT credits FROM users WHERE id = ?');
+      const user = checkStmt.get(userId);
+      if (!user || user.credits < amount) {
+        throw new Error('INSUFFICIENT_CREDITS');
+      }
+      const updateStmt = db.prepare('UPDATE users SET credits = credits - ? WHERE id = ? AND credits >= ?');
+      const info = updateStmt.run(amount, userId, amount);
+      if (info.changes === 0) {
+        throw new Error('INSUFFICIENT_CREDITS');
+      }
+    }
+    const insertStmt = db.prepare(`
+      INSERT INTO analysis_records (id, user_id, session_id, resume_filename, resume_text, job_description_json, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending')
+    `);
+    insertStmt.run(recordId, userId, sessionId, filename, text, jdsJson);
+  });
+
+  try {
+    transaction();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 export function closeDb() {
   try {
     if (db) {
