@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test tests/database.test.js tests/auth.test.js tests/analyze.test.js"
+    "test": "node --test --test-concurrency=1 tests/database.test.js tests/auth.test.js tests/analyze.test.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",

@@ -200,6 +200,7 @@ ${jds}`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
+        response_format: { type: 'json_object' },
         temperature: 0.2
       });
 
@@ -211,10 +212,10 @@ ${jds}`;
         console.log(`[Task 5 LLM] LLM analysis completed for record: ${recordId}`);
       } catch (parseErr) {
         console.error(`[Task 5 LLM Error] AI returned invalid JSON: ${aiResponse}`, parseErr);
-        let cleanResponse = aiResponse;
-        if (cleanResponse.startsWith('```')) {
-          cleanResponse = cleanResponse.replace(/^```json\s*/, '').replace(/```$/, '').trim();
-        }
+        const cleanResponse = aiResponse
+          .replace(/^```(?:json)?\s*/i, '') // 兼容 ``` 和 ```json
+          .replace(/```\s*$/, '')
+          .trim();
         try {
           JSON.parse(cleanResponse);
           updateRecord(recordId, 'completed', cleanResponse);
