@@ -416,7 +416,7 @@ app.get('/api/analyze/download/docx/:recordId', (req, res) => {
 app.use(express.static('public'));
 
 // 启动服务 (仅在非测试环境下监听端口)
-if (process.env.NODE_ENV !== 'test' && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 3005;
   app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);

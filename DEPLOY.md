@@ -25,7 +25,7 @@
   |
   | HTTPS (443)
   v
-your-domain.com
+JianLi.chaunceychi.fun
   |
   | Nginx 反向代理
   v
@@ -37,7 +37,7 @@ Express App:3005
 
 生产环境建议：
 
-- 客户端仅能通过 `https://your-domain.com` 访问系统，不直接将应用监听的 `3005` 端口暴露到公网。
+- 客户端仅能通过 `https://JianLi.chaunceychi.fun` 访问系统，不直接将应用监听的 `3005` 端口暴露到公网。
 - 考虑到本服务器的 `3000` 和 `3222` 端口已被其他应用占用，项目默认的开发与部署端口统一调整为 **`3005`**。
 - Nginx 负责 HTTPS 证书卸载、静态资源缓存和安全控制。
 - 本地数据库采用 SQLite（WAL 模式），数据保存在服务器本地。
@@ -66,7 +66,7 @@ Node.js: v18.0.0 或更高版本
 生产环境需要准备：
 
 ```text
-访问域名: your-domain.com / jianli.your-domain.com
+访问域名: JianLi.chaunceychi.fun
 备案: 中国内地服务器需要 ICP 备案
 HTTPS 证书: 必须有效，建议使用 Let's Encrypt 证书
 ```
@@ -96,14 +96,14 @@ HTTPS 证书: 必须有效，建议使用 Let's Encrypt 证书
 在服务器上准备部署目录（例如 Linux 系统）：
 
 ```bash
-mkdir -p /opt/jianli-resume
-cd /opt/jianli-resume
+mkdir -p /opt/JianLi
+cd /opt/JianLi
 ```
 
 将项目文件上传至该目录下。如果使用 Git，建议：
 
 ```bash
-git clone <your-repo-url> /opt/jianli-resume
+git clone https://github.com/<your-org>/JianLi.git /opt/JianLi
 ```
 
 ### 4.2 配置环境变量
@@ -155,7 +155,7 @@ nvm use 18
 **2. 安装项目依赖**
 
 ```bash
-cd /opt/jianli-resume
+cd /opt/JianLi
 npm install --production
 ```
 
@@ -163,7 +163,7 @@ npm install --production
 
 ```bash
 npm install -g pm2
-pm2 start server.js --name jianli-resume
+pm2 start server.js --name JianLi
 pm2 save
 pm2 startup
 ```
@@ -258,7 +258,7 @@ sudo nano /etc/nginx/sites-available/jianli
 ```nginx
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name JianLi.chaunceychi.fun;
 
     # 限制文件上传大小为 5MB (与 Multer 限制一致)
     client_max_body_size 5m;
@@ -291,7 +291,7 @@ sudo systemctl reload nginx
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
+sudo certbot --nginx -d JianLi.chaunceychi.fun
 ```
 
 ---
@@ -520,10 +520,10 @@ NODE_ENV=test node --test --test-concurrency=1 tests/database.test.js tests/auth
 
 ```bash
 # 查看 PM2 运行状态
-pm2 status jianli-resume
+pm2 status JianLi
 
 # 查看实时日志
-pm2 logs jianli-resume
+pm2 logs JianLi
 ```
 
 ### 12.2 数据备份 (SQLite WAL)
@@ -532,13 +532,13 @@ pm2 logs jianli-resume
 
 ```bash
 # 每日定时任务备份示例
-cp /opt/jianli-resume/database.db /opt/jianli-resume/backups/database-$(date +%F).db
+cp /opt/JianLi/database.db /opt/JianLi/backups/database-$(date +%F).db
 ```
 
 ### 12.3 服务热重启
 
 ```bash
-pm2 reload jianli-resume
+pm2 reload JianLi
 ```
 
 ---
