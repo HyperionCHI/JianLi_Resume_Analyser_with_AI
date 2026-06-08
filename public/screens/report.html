@@ -162,7 +162,6 @@
   <script>
     let reportData = null;
     let recordId = null;
-    let activeJobKey = null;
 
     // 从 sessionStorage 读取分析结果
     const resultJson = sessionStorage.getItem('analysisResult');
@@ -189,10 +188,9 @@
       const stats = data.stats || {};
       const issues = data.issues || [];
 
-      // 默认选中第一个 job，否则显示 overall
-      activeJobKey = jobs.length > 0 ? jobs[0].key : null;
-
       document.getElementById('download-float').style.display = 'flex';
+
+      const firstJob = jobs.length > 0 ? jobs[0] : null;
 
       const html = `
         <div class="report-layout">
@@ -201,8 +199,7 @@
             <p class="text-muted" style="font-size: 0.85rem; margin-bottom: var(--space-lg);">切换查看不同岗位的匹配分析</p>
             <div class="jd-tabs-scroll" id="jd-tabs">
               ${jobs.map((job, idx) => `
-                <div class="jd-tab ${idx === 0 ? 'active' : ''}" 
-                     data-key="${escapeAttr(job.key)}" 
+                <div class="jd-tab ${idx === 0 ? 'active' : ''}"
                      onclick="switchJob('${escapeAttr(job.key)}', this)">
                   <span>${escapeHtml(job.title)}</span>
                   <span class="match-pill">${job.match_rate}% 匹配</span>
@@ -221,7 +218,7 @@
                   <span class="score-label">总评分</span>
                 </div>
                 <div>
-                  <h1 id="job-title-display">${jobs.length > 0 ? escapeHtml(jobs[0].title) + ' - 岗位匹配报告' : '简历整体分析报告'}</h1>
+                  <h1 id="job-title-display">${firstJob ? escapeHtml(firstJob.title) + ' - 岗位匹配报告' : '简历整体分析报告'}</h1>
                   <p class="text-muted mt-sm">${escapeHtml(data.verdict_30s || '')}</p>
                 </div>
               </div>
@@ -237,7 +234,7 @@
 
             <!-- 岗位匹配优势与差距 -->
             <div id="job-detail-section">
-              ${jobs.length > 0 ? renderJobDetail(jobs[0]) : ''}
+              ${firstJob ? renderJobDetail(firstJob) : ''}
             </div>
 
             <!-- 问题诊断与建议 -->
@@ -311,12 +308,9 @@
     }
 
     window.switchJob = function(key, tabEl) {
-      // 更新 tab 状态
       document.querySelectorAll('.jd-tab').forEach(t => t.classList.remove('active'));
       tabEl.classList.add('active');
-      activeJobKey = key;
 
-      // 找到对应 job 数据并重渲染
       const job = (reportData.jobs || []).find(j => j.key === key);
       const titleEl = document.getElementById('job-title-display');
       if (titleEl && job) titleEl.textContent = job.title + ' - 岗位匹配报告';
