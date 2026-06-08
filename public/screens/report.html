@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>分析报告 - 见历</title>
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="../css/styles.css">
   <style>
     .report-layout {
       display: grid;
@@ -135,15 +135,15 @@
         <h3>目标岗位</h3>
         <p class="text-muted" style="font-size: 0.85rem; margin-bottom: var(--space-lg);">切换查看不同岗位的匹配分析</p>
         <div class="jd-tabs-scroll">
-          <div class="jd-tab active" onclick="switchJD('pm')">
+          <div class="jd-tab active" onclick="switchJD('pm', event)">
             <span>产品经理</span>
             <span class="match-pill">85% 匹配</span>
           </div>
-          <div class="jd-tab" onclick="switchJD('op')">
+          <div class="jd-tab" onclick="switchJD('op', event)">
             <span>运营专家</span>
             <span class="match-pill">62% 匹配</span>
           </div>
-          <div class="jd-tab" onclick="switchJD('general')">
+          <div class="jd-tab" onclick="switchJD('general', event)">
             <span>常规分析 (无 JD)</span>
           </div>
         </div>
@@ -258,173 +258,20 @@
   </main>
 
   <div class="download-float">
-    <button class="btn btn-outline" style="background: white; box-shadow: var(--shadow-md);" onclick="downloadReport()">下载详细分析报告</button>
-    <button class="btn btn-primary" style="box-shadow: var(--shadow-md);" onclick="downloadResume()">下载 AI 优化版简历 (.md)</button>
+    <button class="btn btn-outline" style="background: white; box-shadow: var(--shadow-md);">下载详细分析报告</button>
+    <button class="btn btn-primary" style="box-shadow: var(--shadow-md);">下载 AI 优化版简历 (.docx)</button>
   </div>
 
   <script>
-    const taskId = localStorage.getItem('taskId');
-    const resultStr = localStorage.getItem('analysisResult');
-    
-    if (!resultStr) {
-      alert('未找到分析报告数据，请重新分析。');
-      location.href = 'index.html';
-    }
-
-    const result = JSON.parse(resultStr);
-
-    window.onload = function() {
-      renderSidebar();
-      // 默认加载第一个岗位，如果无岗位则加载常规分析
-      const jobNames = Object.keys(result.jobs || {});
-      if (jobNames.length > 0) {
-        loadReport(jobNames[0]);
-      } else {
-        loadReport('general');
-      }
-    };
-
-    function renderSidebar() {
-      const scrollContainer = document.querySelector('.jd-tabs-scroll');
-      let html = '';
-      
-      const jobNames = Object.keys(result.jobs || {});
-      jobNames.forEach((name, idx) => {
-        const job = result.jobs[name];
-        html += `
-          <div class="jd-tab" id="tab-${idx}" onclick="switchJob('${name}', 'tab-${idx}')">
-            <span>${name}</span>
-            <span class="match-pill">${job.score}% 匹配</span>
-          </div>
-        `;
-      });
-
-      // 始终追加常规分析
-      html += `
-        <div class="jd-tab" id="tab-general" onclick="switchJob('general', 'tab-general')">
-          <span>常规分析 (无 JD)</span>
-        </div>
-      `;
-
-      scrollContainer.innerHTML = html;
-    }
-
-    function switchJob(jobName, tabId) {
+    function switchJD(type, event) {
       const tabs = document.querySelectorAll('.jd-tab');
       tabs.forEach(t => t.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-      loadReport(jobName);
-    }
-
-    function loadReport(jobName) {
-      const title = document.getElementById('jdTitle');
-      const scoreVal = document.querySelector('.score-val');
-      const scoreCircle = document.querySelector('.score-circle');
-      const summaryText = document.querySelector('.score-hero p');
+      event.currentTarget.classList.add('active');
       
-      const completenessProgress = document.querySelectorAll('.stat-progress')[0];
-      const completenessText = document.querySelectorAll('.stat-card span')[0];
-      const clarityProgress = document.querySelectorAll('.stat-progress')[1];
-      const clarityText = document.querySelectorAll('.stat-card span')[1];
-      const qualityProgress = document.querySelectorAll('.stat-progress')[2];
-      const qualityText = document.querySelectorAll('.stat-card span')[2];
-      const keywordProgress = document.querySelectorAll('.stat-progress')[3];
-      const keywordText = document.querySelectorAll('.stat-card span')[3];
-
-      const advantagesContainer = document.querySelectorAll('.report-content .card')[1];
-      const missingContainer = document.querySelectorAll('.report-content .card')[2];
-      const diagnosesContainer = document.querySelectorAll('.report-content .card')[3];
-
-      // 公共指标
-      completenessProgress.style.width = `${result.stats.completeness}%`;
-      completenessText.textContent = `${result.stats.completeness}%`;
-      clarityProgress.style.width = `${result.stats.clarity}%`;
-      clarityText.textContent = `${result.stats.clarity}%`;
-      qualityProgress.style.width = `${result.stats.experienceQuality}%`;
-      qualityText.textContent = `${result.stats.experienceQuality}%`;
-      keywordProgress.style.width = `${result.stats.keywordCoverage}%`;
-      keywordText.textContent = `${result.stats.keywordCoverage}%`;
-
-      if (jobName === 'general') {
-        title.textContent = '常规简历分析报告';
-        scoreVal.textContent = result.score;
-        summaryText.textContent = result.summary;
-
-        // 渲染常规优势
-        renderListCard(advantagesContainer, '评估优势', result.advantages, '✓', 'success');
-        // 渲染常规劣势
-        renderListCard(missingContainer, '评估不足', result.missingSkills, '!', '');
-        // 渲染优化诊断
-        renderDiagnosesCard(diagnosesContainer, result.diagnoses);
-      } else {
-        const job = result.jobs[jobName];
-        title.textContent = `${jobName} - 岗位匹配报告`;
-        scoreVal.textContent = job.score;
-        summaryText.textContent = job.summary;
-
-        // 渲染岗位优势
-        renderListCard(advantagesContainer, '匹配优势', job.advantages, '✓', 'success');
-        // 渲染岗位不足
-        renderListCard(missingContainer, '缺失能力/关键词', job.missingSkills, '!', '');
-        // 渲染优化诊断
-        renderDiagnosesCard(diagnosesContainer, job.diagnoses || result.diagnoses);
-      }
-    }
-
-    function renderListCard(container, title, items, iconText, iconClass) {
-      let html = `<h3 style="margin-bottom: var(--space-lg);">${title}</h3>`;
-      if (!items || items.length === 0) {
-        html += `<p class="text-muted" style="font-size: 0.9rem;">暂无评估项。</p>`;
-      } else {
-        items.forEach(item => {
-          html += `
-            <div class="issue-item">
-              <div class="issue-icon ${iconClass}">${iconText}</div>
-              <div>
-                <p style="font-weight: 600;">${item.title}</p>
-                <p class="text-muted" style="font-size: 0.85rem;">${item.description}</p>
-              </div>
-            </div>
-          `;
-        });
-      }
-      container.innerHTML = html;
-    }
-
-    function renderDiagnosesCard(container, diagnoses) {
-      let html = `<h3 style="margin-bottom: var(--space-lg);">主要问题诊断与优化建议</h3>`;
-      if (!diagnoses || diagnoses.length === 0) {
-        html += `<p class="text-muted" style="font-size: 0.9rem;">未发现严重缺陷，简历表达良好！</p>`;
-      } else {
-        diagnoses.forEach(d => {
-          html += `
-            <div class="issue-item">
-              <div class="issue-icon">!</div>
-              <div>
-                <p style="font-weight: 600;">${d.title}</p>
-                <p class="text-muted" style="margin: 4px 0 var(--space-sm);">${d.description}</p>
-                ${d.before || d.after ? `
-                  <div style="background: var(--bg); padding: var(--space-md); border-radius: var(--radius-sm); font-size: 0.85rem;">
-                    ${d.before ? `<p><strong>优化前：</strong>${d.before}</p>` : ''}
-                    ${d.after ? `<p class="mt-sm"><strong>优化后：</strong>${d.after}</p>` : ''}
-                  </div>
-                ` : ''}
-              </div>
-            </div>
-          `;
-        });
-      }
-      container.innerHTML = html;
-    }
-
-    function downloadReport() {
-      if (!taskId) return alert('无效的任务ID');
-      window.open(`/api/download/report/${taskId}`, '_blank');
-    }
-
-    function downloadResume() {
-      if (!taskId) return alert('无效的任务ID');
-      window.open(`/api/download/resume/${taskId}`, '_blank');
+      const title = document.getElementById('jdTitle');
+      if (type === 'pm') title.textContent = '产品经理 - 岗位匹配报告';
+      if (type === 'op') title.textContent = '运营专家 - 岗位匹配报告';
+      if (type === 'general') title.textContent = '常规简历分析报告';
     }
   </script>
 </body>

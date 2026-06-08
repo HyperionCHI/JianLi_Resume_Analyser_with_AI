@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>分析中 - 见历</title>
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="../css/styles.css">
   <style>
     .analysis-container {
       max-width: 600px;
@@ -111,73 +111,31 @@
   </div>
 
   <script>
-    const taskId = localStorage.getItem('taskId');
-    if (!taskId) {
-      alert('未检测到有效的分析任务，请重新上传简历。');
-      location.href = 'index.html';
-    }
+    const steps = ['step2', 'step3', 'step4', 'step5'];
+    let current = 0;
 
-    const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
-    
-    // 定时轮询状态
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/status/${taskId}`);
-        const data = await response.json();
+    const interval = setInterval(() => {
+      if (current < steps.length) {
+        const prevId = current === 0 ? 'step1' : steps[current - 1];
+        const currId = steps[current];
         
-        if (data.error) {
-          clearInterval(pollInterval);
-          alert('分析出错: ' + data.error);
-          location.href = 'index.html';
-          return;
-        }
-
-        const step = data.progressStep || 1; // 1-5
+        // Mark current as active
+        document.getElementById(currId).className = 'step-item active';
+        document.getElementById(currId).querySelector('.step-icon').innerHTML = '<div class="spinner"></div>';
         
-        // 动态更新步骤界面状态
-        for (let i = 1; i <= 5; i++) {
-          const id = `step${i}`;
-          const el = document.getElementById(id);
-          const icon = el.querySelector('.step-icon');
-          
-          if (i < step) {
-            // 已完成
-            el.className = 'step-item done';
-            icon.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-          } else if (i === step && data.status !== 'completed') {
-            // 进行中
-            el.className = 'step-item active';
-            icon.innerHTML = '<div class="spinner"></div>';
-          } else {
-            // 未开始
-            el.className = 'step-item';
-            icon.innerHTML = '';
-          }
-        }
-
-        if (data.status === 'completed') {
-          // 全部标记完成
-          steps.forEach(id => {
-            const el = document.getElementById(id);
-            el.className = 'step-item done';
-            el.querySelector('.step-icon').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-          });
-
-          clearInterval(pollInterval);
-          localStorage.setItem('analysisResult', JSON.stringify(data.result));
-          
-          setTimeout(() => {
-            location.href = 'report.html';
-          }, 1000);
-        } else if (data.status === 'failed') {
-          clearInterval(pollInterval);
-          alert('分析失败，请稍后重试。原因: ' + (data.error || '未知错误'));
-          location.href = 'index.html';
-        }
-      } catch (err) {
-        console.error('轮询失败:', err);
+        // Mark previous as done
+        const prev = document.getElementById(prevId);
+        prev.className = 'step-item done';
+        prev.querySelector('.step-icon').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        
+        current++;
+      } else {
+        clearInterval(interval);
+        setTimeout(() => {
+          location.href = 'report.html';
+        }, 1000);
       }
-    }, 1500);
+    }, 2000);
   </script>
 </body>
 </html>

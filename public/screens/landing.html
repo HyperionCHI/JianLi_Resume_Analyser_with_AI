@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>见历 - AI 简历分析与优化</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .hero {
+      padding: var(--space-xxl) 0;
+      text-align: center;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      margin-bottom: var(--space-md);
+      color: var(--fg);
+    }
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--muted);
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .upload-container {
+      max-width: 800px;
+      margin: 0 auto var(--space-xxl);
+    }
+
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      text-align: center;
+      background: var(--surface);
+      transition: border-color 0.3s;
+      cursor: pointer;
+    }
+    .upload-zone:hover {
+      border-color: var(--accent);
+    }
+    .upload-icon {
+      font-size: 3rem;
+      margin-bottom: var(--space-md);
+      color: var(--accent);
+      display: block;
+    }
+
+    .jd-section {
+      margin-top: var(--space-xl);
+    }
+    .jd-card {
+      margin-bottom: var(--space-md);
+      position: relative;
+    }
+    .jd-remove {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .jd-input {
+      width: 100%;
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      margin-top: var(--space-sm);
+      font-family: var(--font-body);
+    }
+    .jd-textarea {
+      height: 100px;
+      resize: vertical;
+    }
+
+    .action-bar {
+      position: sticky;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border);
+      padding: var(--space-md) 0;
+      margin-top: var(--space-xl);
+      z-index: 100;
+    }
+    .action-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .nav {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: 6px;
+    }
+
+    .credits-tag {
+      background: var(--bg);
+      padding: 4px 12px;
+      border-radius: 99px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    /* Mobile specific */
+    @media (max-width: 768px) {
+      .action-content {
+        flex-direction: column;
+        gap: var(--space-md);
+      }
+      .btn-analyze {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="container nav">
+    <div class="logo">
+      <div class="logo-icon"></div>
+      见历
+    </div>
+    <div style="display: flex; align-items: center; gap: 20px;">
+      <span class="text-muted" style="font-size: 0.9rem;">免费额度：剩余 3 次</span>
+      <button class="btn btn-outline">登录</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <header class="hero">
+      <h1>看见简历问题，<br>也看见更适合你的岗位机会。</h1>
+      <p>上传简历，获得 AI 分析报告、岗位匹配度和可编辑优化版本</p>
+    </header>
+
+    <div class="upload-container">
+      <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" style="display: none;">
+        <span class="upload-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </span>
+        <h3>点击或拖拽上传简历</h3>
+        <p class="text-muted mt-sm">支持 PDF, Word, Markdown, TXT 格式</p>
+      </div>
+
+      <div class="jd-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+          <h2>目标岗位 (可选)</h2>
+          <button class="btn btn-outline" style="font-size: 0.85rem;" onclick="addJD()">+ 添加岗位</button>
+        </div>
+        <p class="text-muted" style="margin-bottom: var(--space-lg);">添加目标岗位，AI 将为您提供精准的匹配度分析与优化建议。</p>
+        
+        <div id="jdList">
+          <div class="card jd-card">
+            <input type="text" class="jd-input" placeholder="输入岗位名称 (例如: 产品经理)">
+            <textarea class="jd-input jd-textarea" placeholder="粘贴岗位描述 / JD (可选，填写后分析更精准)"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="action-bar">
+    <div class="container action-content">
+      <div>
+        <p style="font-size: 0.9rem; font-weight: 500;">本次分析预计消耗</p>
+        <p class="text-muted" style="font-size: 0.8rem;" id="costDisplay">普通分析 10 点 + 1 个岗位 10 点 = 共 20 点</p>
+      </div>
+      <button class="btn btn-primary btn-analyze" style="padding: 14px 40px; font-size: 1.1rem;" onclick="location.href='analysis.html'">
+        分析我的简历
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function addJD() {
+      const list = document.getElementById('jdList');
+      const div = document.createElement('div');
+      div.className = 'card jd-card';
+      div.innerHTML = `
+        <span class="jd-remove" onclick="this.parentElement.remove(); updateCost();">删除</span>
+        <input type="text" class="jd-input" placeholder="输入岗位名称">
+        <textarea class="jd-input jd-textarea" placeholder="粘贴岗位描述 / JD"></textarea>
+      `;
+      list.appendChild(div);
+      updateCost();
+    }
+
+    function updateCost() {
+      const count = document.querySelectorAll('.jd-card').length;
+      const total = 10 + count * 10;
+      document.getElementById('costDisplay').textContent = `普通分析 10 点 + ${count} 个岗位 ${count * 10} 点 = 共 ${total} 点`;
+    }
+  </script>
+</body>
+</html>
