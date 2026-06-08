@@ -281,6 +281,58 @@ test('Upload & Analyze APIs Test Suite', async (t) => {
     assert.strictEqual(recordDocx.resume_text, docxContent);
   });
 
+  // 5. 损坏/空简历上传测试（不扣减积分）
+  await t.test('POST /api/analyze/upload - Failed parse or empty resume should not deduct credits', async () => {
+    const email = 'user_analyze_test@test.com';
+    const password = 'Password123';
+    
+    const loginRes = await fetch('http://localhost:3002/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    assert.strictEqual(loginRes.status, 200);
+    const cookie = loginRes.headers.get('set-cookie').split(';')[0];
+
+    const initialStatusRes = await fetch('http://localhost:3002/api/auth/status', {
+      method: 'GET',
+      headers: { 'Cookie': cookie }
+    });
+    const initialStatusData = await initialStatusRes.json();
+    const initialCredits = initialStatusData.credits;
+
+    const boundary = '----TestBoundary';
+    const bodyEmpty = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="resume"; filename="resume.txt"',
+      'Content-Type: text/plain',
+      '',
+      '',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="jds"',
+      '',
+      JSON.stringify([{ title: 'PM', jd: 'Manage products' }]),
+      `--${boundary}--`
+    ].join('\r\n');
+
+    const resEmpty = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'Cookie': cookie },
+      body: bodyEmpty
+    });
+
+    assert.strictEqual(resEmpty.status, 400);
+    const dataEmpty = await resEmpty.json();
+    assert.match(dataEmpty.message, /为空|失败/i);
+
+    const finalStatusRes = await fetch('http://localhost:3002/api/auth/status', {
+      method: 'GET',
+      headers: { 'Cookie': cookie }
+    });
+    const finalStatusData = await finalStatusRes.json();
+    assert.strictEqual(finalStatusData.credits, initialCredits);
+  });
+
   server.close();
   closeDb();
   if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);

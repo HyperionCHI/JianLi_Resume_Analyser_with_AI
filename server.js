@@ -118,22 +118,21 @@ app.post('/api/analyze/upload', (req, res) => {
       }
     }
 
-    // 扣减积分与额度校验
+    // 1. 先校验额度是否充足 (先不实际扣减)
     const requiredCredits = 10 + jds.length * 10;
     if (req.session.user) {
       const userId = req.session.user.userId;
-      const success = deductCredits(userId, requiredCredits);
-      if (!success) {
+      const currentCredits = getUserCredits(userId);
+      if (currentCredits < requiredCredits) {
         return res.status(403).json({ success: false, message: '积分不足' });
       }
     } else {
       if (!req.session.free_attempts || req.session.free_attempts <= 0) {
         return res.status(403).json({ success: false, message: '免费额度已达上限' });
       }
-      req.session.free_attempts -= 1;
     }
 
-    // 提取文本
+    // 2. 提取文本（PDF/Word/Text）
     let resumeText = '';
     const ext = req.file.originalname.split('.').pop().toLowerCase();
     try {
@@ -163,7 +162,23 @@ app.post('/api/analyze/upload', (req, res) => {
         resumeText = req.file.buffer.toString('utf-8');
       }
     } catch (parseErr) {
-      return res.status(500).json({ success: false, message: '解析文件失败: ' + parseErr.message });
+      return res.status(400).json({ success: false, message: '解析文件失败: ' + parseErr.message });
+    }
+
+    // 校验解析出的文本是否为空
+    if (!resumeText || !resumeText.trim()) {
+      return res.status(400).json({ success: false, message: '解析出的简历文本为空' });
+    }
+
+    // 3. 文本解析成功后，执行实际扣减操作
+    if (req.session.user) {
+      const userId = req.session.user.userId;
+      const success = deductCredits(userId, requiredCredits);
+      if (!success) {
+        return res.status(403).json({ success: false, message: '积分不足' });
+      }
+    } else {
+      req.session.free_attempts -= 1;
     }
 
     // 创建分析记录
@@ -177,7 +192,7 @@ app.post('/api/analyze/upload', (req, res) => {
       return res.status(500).json({ success: false, message: '创建分析记录失败' });
     }
 
-    // 异步后台分析
+    // 4. 启动后台分析并返回
     triggerBackgroundAnalysis(recordId);
 
     return res.json({ success: true, recordId });
