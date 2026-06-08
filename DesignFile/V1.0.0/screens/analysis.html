@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分析中 - 见历</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .analysis-container {
+      max-width: 600px;
+      margin: 100px auto;
+      text-align: center;
+    }
+    .loading-pulse {
+      width: 80px;
+      height: 80px;
+      background: var(--accent);
+      border-radius: 50%;
+      margin: 0 auto 40px;
+      animation: pulse 1.5s infinite ease-in-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .step-list {
+      text-align: left;
+      margin-top: var(--space-xl);
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+      padding: var(--space-md);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      opacity: 0.5;
+      transition: all 0.3s;
+    }
+    .step-item.active {
+      opacity: 1;
+      border-color: var(--accent);
+      box-shadow: var(--shadow-sm);
+    }
+    .step-item.done {
+      opacity: 1;
+      background: var(--bg);
+    }
+    .step-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="analysis-container">
+    <div class="loading-pulse">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>
+    </div>
+    <h2>正在深度分析您的简历...</h2>
+    <p class="text-muted mt-sm">这通常需要 10-20 秒，请稍候</p>
+
+    <div class="step-list">
+      <div class="step-item done" id="step1">
+        <div class="step-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span>正在解析简历内容...</span>
+      </div>
+      <div class="step-item active" id="step2">
+        <div class="step-icon">
+          <div class="spinner"></div>
+        </div>
+        <span>正在分析简历结构与排版...</span>
+      </div>
+      <div class="step-item" id="step3">
+        <div class="step-icon"></div>
+        <span>正在提取核心能力关键词...</span>
+      </div>
+      <div class="step-item" id="step4">
+        <div class="step-icon"></div>
+        <span>正在匹配目标岗位 JD...</span>
+      </div>
+      <div class="step-item" id="step5">
+        <div class="step-icon"></div>
+        <span>正在生成针对性优化建议...</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const steps = ['step2', 'step3', 'step4', 'step5'];
+    let current = 0;
+
+    const interval = setInterval(() => {
+      if (current < steps.length) {
+        const prevId = current === 0 ? 'step1' : steps[current - 1];
+        const currId = steps[current];
+        
+        // Mark current as active
+        document.getElementById(currId).className = 'step-item active';
+        document.getElementById(currId).querySelector('.step-icon').innerHTML = '<div class="spinner"></div>';
+        
+        // Mark previous as done
+        const prev = document.getElementById(prevId);
+        prev.className = 'step-item done';
+        prev.querySelector('.step-icon').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        
+        current++;
+      } else {
+        clearInterval(interval);
+        setTimeout(() => {
+          location.href = 'report.html';
+        }, 1000);
+      }
+    }, 2000);
+  </script>
+</body>
+</html>

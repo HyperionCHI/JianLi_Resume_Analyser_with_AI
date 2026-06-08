@@ -1,0 +1,204 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>见历 - 原型预览</title>
+  <style>
+    :root {
+      --bg: oklch(99% 0.002 240);
+      --surface: oklch(100% 0 0);
+      --fg: oklch(18% 0.012 250);
+      --muted: oklch(54% 0.012 250);
+      --border: oklch(92% 0.005 250);
+      --accent: oklch(58% 0.18 255);
+      --shell: #08090d;
+      --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+      --space-md: 16px;
+      --space-xl: 40px;
+      --space-xxl: 80px;
+    }
+
+    body {
+      background: var(--shell);
+      color: #fff;
+      font-family: var(--font-body);
+      margin: 0;
+      padding: var(--space-xxl) 0;
+      min-height: 100vh;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 var(--space-md);
+    }
+
+    .launcher-header {
+      text-align: center;
+      margin-bottom: var(--space-xxl);
+    }
+
+    .launcher-header h1 {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      letter-spacing: -0.02em;
+      margin: var(--space-md) 0;
+    }
+
+    .launcher-header p {
+      color: rgba(255, 255, 255, 0.6);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .device-showcase {
+      display: flex;
+      flex-direction: column;
+      gap: 100px;
+      align-items: center;
+    }
+
+    .device-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-xl);
+      width: 100%;
+    }
+
+    .device-info {
+      text-align: center;
+      max-width: 800px;
+    }
+
+    .device-info h2 {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      margin-bottom: var(--space-sm);
+    }
+
+    .device-info p {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .frame-container {
+      position: relative;
+      background: #1a1a1a;
+      border-radius: 20px;
+      padding: 10px;
+      box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
+    }
+
+    .macbook-frame {
+      width: 1000px;
+      height: 650px;
+    }
+
+    .iphone-frame {
+      width: 390px;
+      height: 844px;
+    }
+
+    iframe {
+      border: none;
+      width: 100%;
+      height: 100%;
+      background: white;
+      border-radius: 4px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: var(--space-md);
+      margin-top: var(--space-xl);
+      justify-content: center;
+    }
+
+    .nav-links a {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px 24px;
+      border-radius: 99px;
+      color: #fff;
+      font-size: 0.9rem;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .nav-links a:hover {
+      background: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    @media (max-width: 1100px) {
+      .macbook-frame {
+        width: 100%;
+        height: 0;
+        padding-bottom: 65%;
+      }
+    }
+
+    .logo-badge {
+      width: 56px;
+      height: 56px;
+      background: var(--accent);
+      border-radius: 14px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.8rem;
+      box-shadow: 0 8px 20px rgba(93, 131, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="launcher-header">
+      <div class="logo-badge">见</div>
+      <h1>见历 AI · 原型预览</h1>
+      <p>「见历」是一款专业的 AI 简历分析与优化工具。帮助求职者快速发现简历问题、匹配目标岗位并提供针对性修改建议。</p>
+      
+      <div class="nav-links">
+        <a href="screens/landing.html">查看首页 (上传)</a>
+        <a href="screens/analysis.html">查看分析状态</a>
+        <a href="screens/report.html">查看分析结果</a>
+      </div>
+    </header>
+
+    <div class="device-showcase">
+      <!-- Web View -->
+      <div class="device-row">
+        <div class="device-info">
+          <h2>电脑端 (Desktop Web)</h2>
+          <p>提供完整的功能体验，适合深度分析报告查看、多岗位对比及优化版本下载。</p>
+        </div>
+        <div class="frame-container macbook-frame">
+          <iframe src="/frames/macbook.html?screen=screens/landing.html"></iframe>
+        </div>
+      </div>
+
+      <!-- Mobile View -->
+      <div class="device-row">
+        <div class="device-info">
+          <h2>手机端 (Mobile Web)</h2>
+          <p>优化移动端上传与查看体验，采用纵向布局，确保信息在窄屏下依然清晰易读。</p>
+        </div>
+        <div class="frame-container iphone-frame">
+          <iframe src="/frames/iphone-15-pro.html?screen=screens/landing.html"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <footer style="text-align: center; margin-top: 100px; color: rgba(255, 255, 255, 0.3); font-size: 0.85rem;">
+      <p>2026 · 见历 AI 项目原型 · 基于 Open Design 规范构建</p>
+    </footer>
+  </div>
+</body>
+</html>

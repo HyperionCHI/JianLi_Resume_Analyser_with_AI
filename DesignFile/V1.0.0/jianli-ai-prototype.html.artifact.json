@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "见历 AI 简历分析原型",
+  "entry": "jianli-ai-prototype.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "primary": true,
+  "createdAt": "2026-06-08T06:35:54.673Z",
+  "updatedAt": "2026-06-08T06:35:54.686Z",
+  "metadata": {
+    "identifier": "jianli-ai-prototype",
+    "artifactType": "text/html",
+    "inferred": false
+  }
+}
