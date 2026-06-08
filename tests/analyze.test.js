@@ -1,0 +1,287 @@
+import test from 'node:test';
+import assert from 'node:assert';
+import fs from 'fs';
+import { initDb, closeDb, getRecord } from '../database.js';
+
+test('Upload & Analyze APIs Test Suite', async (t) => {
+  const dbPath = './test_analyze_database.db';
+  if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+  initDb(dbPath);
+
+  process.env.PORT = '3002';
+  process.env.NODE_ENV = 'test';
+  process.env.SESSION_SECRET = 'test_secret';
+  const { default: app } = await import('../server.js');
+  const server = app.listen(3002);
+
+  await t.test('POST /api/analyze/upload - Upload text resume successfully', async () => {
+    // 模拟 multipart/form-data 上传一个简易的 txt 简历
+    const boundary = '----TestBoundary';
+    const fileContent = 'Name: John Doe\nSkill: Product Manager\nExperience: 3 years';
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="resume"; filename="resume.txt"',
+      'Content-Type: text/plain',
+      '',
+      fileContent,
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="jds"',
+      '',
+      JSON.stringify([{ title: 'PM', jd: 'Manage products' }]),
+      `--${boundary}--`
+    ].join('\r\n');
+
+    const res = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body: body
+    });
+    const data = await res.json();
+    assert.strictEqual(res.status, 200);
+    assert.ok(data.recordId);
+
+    // 验证数据库中简历文本内容是否正常解析
+    const record = getRecord(data.recordId);
+    assert.strictEqual(record.resume_text, fileContent);
+    assert.strictEqual(record.status, 'pending');
+  });
+
+  // 1. 未登录用户免费额度校验
+  await t.test('POST /api/analyze/upload - Unauthenticated user free attempts flow', async () => {
+    const boundary = '----TestBoundary';
+    const fileContent = 'Free Attempt 1';
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="resume"; filename="resume.txt"',
+      'Content-Type: text/plain',
+      '',
+      fileContent,
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="jds"',
+      '',
+      JSON.stringify([{ title: 'PM', jd: 'Manage products' }]),
+      `--${boundary}--`
+    ].join('\r\n');
+
+    let cookie = '';
+    
+    // Attempt 1
+    const res1 = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body: body
+    });
+    assert.strictEqual(res1.status, 200);
+    const data1 = await res1.json();
+    assert.ok(data1.recordId);
+    
+    const setCookie = res1.headers.get('set-cookie');
+    if (setCookie) {
+      cookie = setCookie.split(';')[0];
+    }
+
+    // Attempt 2
+    const res2 = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Cookie': cookie
+      },
+      body: body
+    });
+    assert.strictEqual(res2.status, 200);
+
+    // Attempt 3
+    const res3 = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Cookie': cookie
+      },
+      body: body
+    });
+    assert.strictEqual(res3.status, 200);
+
+    // Attempt 4 -> Should fail with 403 (No free attempts)
+    const res4 = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Cookie': cookie
+      },
+      body: body
+    });
+    assert.strictEqual(res4.status, 403);
+    const data4 = await res4.json();
+    assert.match(data4.message, /额度不足|次数已达上限|无免费额度|免费额度已达上限/i);
+  });
+
+  // 2. 已登录用户积分扣减规则校验
+  await t.test('POST /api/analyze/upload - Authenticated user credits deduction', async () => {
+    const email = 'user_analyze_test@test.com';
+    const password = 'Password123';
+    
+    const regRes = await fetch('http://localhost:3002/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    assert.strictEqual(regRes.status, 200);
+    
+    const cookie = regRes.headers.get('set-cookie').split(';')[0];
+
+    // 默认积分是 100，扣减 10 + 2 * 10 = 30 积分，剩余 70
+    const boundary = '----TestBoundary';
+    const fileContent = 'Logged In User Resume';
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="resume"; filename="resume.txt"',
+      'Content-Type: text/plain',
+      '',
+      fileContent,
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="jds"',
+      '',
+      JSON.stringify([{ title: 'PM1', jd: 'JD1' }, { title: 'PM2', jd: 'JD2' }]),
+      `--${boundary}--`
+    ].join('\r\n');
+
+    const uploadRes = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Cookie': cookie
+      },
+      body: body
+    });
+    
+    assert.strictEqual(uploadRes.status, 200);
+    const uploadData = await uploadRes.json();
+    assert.ok(uploadData.recordId);
+
+    const statusRes = await fetch('http://localhost:3002/api/auth/status', {
+      method: 'GET',
+      headers: { 'Cookie': cookie }
+    });
+    const statusData = await statusRes.json();
+    assert.strictEqual(statusData.credits, 70);
+
+    const record = getRecord(uploadData.recordId);
+    assert.strictEqual(record.resume_text, fileContent);
+    assert.strictEqual(record.status, 'pending');
+  });
+
+  // 3. 已登录用户积分不足时拦截 403 校验
+  await t.test('POST /api/analyze/upload - Authenticated user insufficient credits', async () => {
+    const email = 'user_analyze_test@test.com';
+    const password = 'Password123';
+    
+    const loginRes = await fetch('http://localhost:3002/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    assert.strictEqual(loginRes.status, 200);
+    const cookie = loginRes.headers.get('set-cookie').split(';')[0];
+
+    // 发送 7 个 JDs，扣减 10 + 7 * 10 = 80 积分，大于剩下的 70 积分
+    const boundary = '----TestBoundary';
+    const fileContent = 'Logged In User Resume';
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="resume"; filename="resume.txt"',
+      'Content-Type: text/plain',
+      '',
+      fileContent,
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="jds"',
+      '',
+      JSON.stringify([
+        { title: 'PM1', jd: 'JD1' },
+        { title: 'PM2', jd: 'JD2' },
+        { title: 'PM3', jd: 'JD3' },
+        { title: 'PM4', jd: 'JD4' },
+        { title: 'PM5', jd: 'JD5' },
+        { title: 'PM6', jd: 'JD6' },
+        { title: 'PM7', jd: 'JD7' }
+      ]),
+      `--${boundary}--`
+    ].join('\r\n');
+
+    const uploadRes = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Cookie': cookie
+      },
+      body: body
+    });
+
+    assert.strictEqual(uploadRes.status, 403);
+    const uploadData = await uploadRes.json();
+    assert.match(uploadData.message, /积分不足/i);
+
+    const statusRes = await fetch('http://localhost:3002/api/auth/status', {
+      method: 'GET',
+      headers: { 'Cookie': cookie }
+    });
+    const statusData = await statusRes.json();
+    assert.strictEqual(statusData.credits, 70);
+  });
+
+  // 4. 文件上传解析规则测试
+  await t.test('POST /api/analyze/upload - Upload pdf and docx resume fallback', async () => {
+    const boundary = '----TestBoundary';
+    const pdfContent = 'PDF Resume Content';
+    const bodyPdf = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="resume"; filename="resume.pdf"',
+      'Content-Type: application/pdf',
+      '',
+      pdfContent,
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="jds"',
+      '',
+      JSON.stringify([{ title: 'PM', jd: 'Manage products' }]),
+      `--${boundary}--`
+    ].join('\r\n');
+
+    const resPdf = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body: bodyPdf
+    });
+    const dataPdf = await resPdf.json();
+    assert.strictEqual(resPdf.status, 200);
+    const recordPdf = getRecord(dataPdf.recordId);
+    assert.strictEqual(recordPdf.resume_text, pdfContent);
+
+    const docxContent = 'DOCX Resume Content';
+    const bodyDocx = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="resume"; filename="resume.docx"',
+      'Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '',
+      docxContent,
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="jds"',
+      '',
+      JSON.stringify([{ title: 'PM', jd: 'Manage products' }]),
+      `--${boundary}--`
+    ].join('\r\n');
+
+    const resDocx = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body: bodyDocx
+    });
+    const dataDocx = await resDocx.json();
+    assert.strictEqual(resDocx.status, 200);
+    const recordDocx = getRecord(dataDocx.recordId);
+    assert.strictEqual(recordDocx.resume_text, docxContent);
+  });
+
+  server.close();
+  closeDb();
+  if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+});
