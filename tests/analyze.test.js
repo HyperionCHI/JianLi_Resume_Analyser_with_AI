@@ -392,6 +392,48 @@ test('Upload & Analyze APIs Test Suite', async (t) => {
     assert.match(dataInvalid.message, /必须是数组/i);
   });
 
+  await t.test('GET /api/analyze/status/:recordId - Mock fallback analysis integration', async () => {
+    // 模拟注册并登录一个测试用户，或者以匿名用户上传文件
+    const boundary = '----TestBoundary';
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="resume"; filename="resume.txt"',
+      'Content-Type: text/plain',
+      '',
+      'Resume content for John Doe',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="jds"',
+      '',
+      JSON.stringify([{ title: 'PM', jd: 'Manage products' }]),
+      `--${boundary}--`
+    ].join('\r\n');
+
+    const uploadRes = await fetch('http://localhost:3002/api/analyze/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body: body
+    });
+    const uploadData = await uploadRes.json();
+    assert.strictEqual(uploadRes.status, 200);
+    const recordId = uploadData.recordId;
+
+    // 轮询直到状态为 completed (测试环境下由于没配 QINIU_API_KEY，应降级触发 2 秒延时的 mock)
+    let completed = false;
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      const statusRes = await fetch(`http://localhost:3002/api/analyze/status/${recordId}`);
+      const statusData = await statusRes.json();
+      assert.strictEqual(statusRes.status, 200);
+      if (statusData.status === 'completed') {
+        completed = true;
+        assert.strictEqual(statusData.result.overall_score, 85);
+        assert.strictEqual(statusData.result.stats.content_integrity, 95);
+        break;
+      }
+    }
+    assert.ok(completed, 'Analysis should complete with mock fallback');
+  });
+
   server.close();
   closeDb();
   if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
