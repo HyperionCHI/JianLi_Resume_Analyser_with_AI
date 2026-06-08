@@ -11,10 +11,12 @@
       grid-template-columns: 300px 1fr;
       gap: var(--space-xl);
       margin-top: var(--space-xl);
+      margin-bottom: 120px;
     }
     .report-sidebar {
       position: sticky;
       top: 20px;
+      height: fit-content;
     }
     .jd-tab {
       padding: var(--space-md);
@@ -51,6 +53,7 @@
     .score-circle {
       width: 120px;
       height: 120px;
+      flex-shrink: 0;
       border-radius: 50%;
       border: 8px solid var(--accent);
       display: flex;
@@ -59,7 +62,7 @@
       justify-content: center;
       background: var(--surface);
     }
-    .score-val { font-size: 2.5rem; font-weight: 800; line-height: 1; }
+    .score-val { font-size: 2.5rem; font-weight: 800; line-height: 1; color: var(--accent); }
     .score-label { font-size: 0.8rem; color: var(--muted); }
 
     .stat-grid {
@@ -76,7 +79,7 @@
       overflow: hidden;
       margin-top: var(--space-sm);
     }
-    .stat-progress { height: 100%; background: var(--accent); border-radius: 4px; }
+    .stat-progress { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.8s ease; }
 
     .issue-item {
       display: flex;
@@ -84,12 +87,13 @@
       padding: var(--space-md) 0;
       border-bottom: 1px solid var(--border);
     }
+    .issue-item:last-child { border-bottom: none; }
     .issue-icon {
       flex-shrink: 0;
       width: 20px;
       height: 20px;
       border-radius: 50%;
-      background: var(--warning);
+      background: var(--warning, #ed8936);
       color: white;
       display: flex;
       align-items: center;
@@ -97,7 +101,16 @@
       font-size: 12px;
       font-weight: bold;
     }
-    .issue-icon.success { background: var(--success); }
+    .issue-icon.success { background: var(--success, #38a169); }
+
+    .code-block {
+      background: var(--bg);
+      padding: var(--space-md);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      margin-top: var(--space-sm);
+      border-left: 3px solid var(--accent);
+    }
 
     .download-float {
       position: fixed;
@@ -106,6 +119,12 @@
       display: flex;
       gap: var(--space-md);
       z-index: 1000;
+    }
+
+    .loading-placeholder {
+      text-align: center;
+      padding: var(--space-xxl);
+      color: var(--muted);
     }
 
     @media (max-width: 1024px) {
@@ -130,148 +149,200 @@
   </nav>
 
   <main class="container">
-    <div class="report-layout">
-      <aside class="report-sidebar">
-        <h3>目标岗位</h3>
-        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: var(--space-lg);">切换查看不同岗位的匹配分析</p>
-        <div class="jd-tabs-scroll">
-          <div class="jd-tab active" onclick="switchJD('pm', event)">
-            <span>产品经理</span>
-            <span class="match-pill">85% 匹配</span>
-          </div>
-          <div class="jd-tab" onclick="switchJD('op', event)">
-            <span>运营专家</span>
-            <span class="match-pill">62% 匹配</span>
-          </div>
-          <div class="jd-tab" onclick="switchJD('general', event)">
-            <span>常规分析 (无 JD)</span>
-          </div>
-        </div>
-      </aside>
-
-      <section class="report-content">
-        <div class="card" style="margin-bottom: var(--space-xl);">
-          <div class="score-hero">
-            <div class="score-circle">
-              <span class="score-val">85</span>
-              <span class="score-label">总评分</span>
-            </div>
-            <div>
-              <h1 id="jdTitle">产品经理 - 岗位匹配报告</h1>
-              <p class="text-muted mt-sm">您的简历与该岗位的核心要求高度匹配，但在项目量化结果和特定工具使用上仍有优化空间。</p>
-            </div>
-          </div>
-
-          <div class="stat-grid">
-            <div class="stat-card">
-              <h4>内容完整度</h4>
-              <div style="display: flex; justify-content: space-between; font-weight: 600;">
-                <span>95%</span>
-              </div>
-              <div class="stat-bar"><div class="stat-progress" style="width: 95%;"></div></div>
-            </div>
-            <div class="stat-card">
-              <h4>表达清晰度</h4>
-              <div style="display: flex; justify-content: space-between; font-weight: 600;">
-                <span>80%</span>
-              </div>
-              <div class="stat-bar"><div class="stat-progress" style="width: 80%;"></div></div>
-            </div>
-            <div class="stat-card">
-              <h4>经历质量</h4>
-              <div style="display: flex; justify-content: space-between; font-weight: 600;">
-                <span>88%</span>
-              </div>
-              <div class="stat-bar"><div class="stat-progress" style="width: 88%;"></div></div>
-            </div>
-            <div class="stat-card">
-              <h4>关键词覆盖</h4>
-              <div style="display: flex; justify-content: space-between; font-weight: 600;">
-                <span>72%</span>
-              </div>
-              <div class="stat-bar"><div class="stat-progress" style="width: 72%;"></div></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid grid-2">
-          <div class="card">
-            <h3 style="margin-bottom: var(--space-lg);">匹配优势</h3>
-            <div class="issue-item">
-              <div class="issue-icon success">✓</div>
-              <div>
-                <p style="font-weight: 600;">行业背景契合</p>
-                <p class="text-muted" style="font-size: 0.85rem;">您在电商行业的 3 年经验与该岗位高度契合。</p>
-              </div>
-            </div>
-            <div class="issue-item">
-              <div class="issue-icon success">✓</div>
-              <div>
-                <p style="font-weight: 600;">核心技能覆盖</p>
-                <p class="text-muted" style="font-size: 0.85rem;">简历中明确提到了产品规划、数据分析、原型设计等关键词。</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <h3 style="margin-bottom: var(--space-lg);">缺失能力/关键词</h3>
-            <div class="issue-item">
-              <div class="issue-icon">!</div>
-              <div>
-                <p style="font-weight: 600;">缺少 SQL 描述</p>
-                <p class="text-muted" style="font-size: 0.85rem;">JD 要求熟练使用 SQL，您的简历中未体现数据查询能力。</p>
-              </div>
-            </div>
-            <div class="issue-item">
-              <div class="issue-icon">!</div>
-              <div>
-                <p style="font-weight: 600;">敏捷开发流程</p>
-                <p class="text-muted" style="font-size: 0.85rem;">建议补充您在 Scrum/Agile 团队中的协作经验。</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card mt-lg">
-          <h3 style="margin-bottom: var(--space-lg);">主要问题诊断与优化建议</h3>
-          <div class="issue-item">
-            <div class="issue-icon">!</div>
-            <div>
-              <p style="font-weight: 600;">项目成果描述缺乏量化指标</p>
-              <p class="text-muted" style="margin: 4px 0 var(--space-sm);">在“XX项目”描述中，您提到了“提升了用户体验”，建议使用具体数字体现，如“核心转化率提升 15%”。</p>
-              <div style="background: var(--bg); padding: var(--space-md); border-radius: var(--radius-sm); font-size: 0.85rem;">
-                <p><strong>优化前：</strong>负责产品优化，提升了用户活跃度。</p>
-                <p class="mt-sm"><strong>优化后：</strong>负责核心功能迭代，通过 A/B 测试优化路径，带动日活 (DAU) 增长 12%，次日留存提升 5%。</p>
-              </div>
-            </div>
-          </div>
-          <div class="issue-item">
-            <div class="issue-icon">!</div>
-            <div>
-              <p style="font-weight: 600;">排版建议：工作经历过长</p>
-              <p class="text-muted">最近一段经历描述超过了 8 条，建议精简至 5 条最核心的成就，突出重点。</p>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div id="report-root">
+      <div class="loading-placeholder">正在加载分析结果...</div>
     </div>
   </main>
 
-  <div class="download-float">
-    <button class="btn btn-outline" style="background: white; box-shadow: var(--shadow-md);">下载详细分析报告</button>
-    <button class="btn btn-primary" style="box-shadow: var(--shadow-md);">下载 AI 优化版简历 (.docx)</button>
+  <div class="download-float" id="download-float" style="display: none;">
+    <button class="btn btn-outline" id="dl-report-btn" style="background: white; box-shadow: var(--shadow-md);" onclick="downloadReport()">下载详细分析报告</button>
+    <button class="btn btn-primary" id="dl-docx-btn" style="box-shadow: var(--shadow-md);" onclick="downloadDocx()">下载 AI 优化版简历 (.txt)</button>
   </div>
 
   <script>
-    function switchJD(type, event) {
-      const tabs = document.querySelectorAll('.jd-tab');
-      tabs.forEach(t => t.classList.remove('active'));
-      event.currentTarget.classList.add('active');
-      
-      const title = document.getElementById('jdTitle');
-      if (type === 'pm') title.textContent = '产品经理 - 岗位匹配报告';
-      if (type === 'op') title.textContent = '运营专家 - 岗位匹配报告';
-      if (type === 'general') title.textContent = '常规简历分析报告';
+    let reportData = null;
+    let recordId = null;
+    let activeJobKey = null;
+
+    // 从 sessionStorage 读取分析结果
+    const resultJson = sessionStorage.getItem('analysisResult');
+    recordId = sessionStorage.getItem('currentRecordId');
+
+    if (!resultJson || !recordId) {
+      document.getElementById('report-root').innerHTML = `
+        <div class="loading-placeholder">
+          <p>⚠️ 未找到分析结果。</p>
+          <button class="btn btn-primary" style="margin-top: 16px;" onclick="location.href='landing.html'">返回首页重新分析</button>
+        </div>
+      `;
+    } else {
+      try {
+        reportData = JSON.parse(resultJson);
+        renderReport(reportData);
+      } catch (e) {
+        document.getElementById('report-root').innerHTML = `<div class="loading-placeholder">❌ 结果解析失败，请返回重试。</div>`;
+      }
+    }
+
+    function renderReport(data) {
+      const jobs = data.jobs || [];
+      const stats = data.stats || {};
+      const issues = data.issues || [];
+
+      // 默认选中第一个 job，否则显示 overall
+      activeJobKey = jobs.length > 0 ? jobs[0].key : null;
+
+      document.getElementById('download-float').style.display = 'flex';
+
+      const html = `
+        <div class="report-layout">
+          <aside class="report-sidebar">
+            <h3>目标岗位</h3>
+            <p class="text-muted" style="font-size: 0.85rem; margin-bottom: var(--space-lg);">切换查看不同岗位的匹配分析</p>
+            <div class="jd-tabs-scroll" id="jd-tabs">
+              ${jobs.map((job, idx) => `
+                <div class="jd-tab ${idx === 0 ? 'active' : ''}" 
+                     data-key="${escapeAttr(job.key)}" 
+                     onclick="switchJob('${escapeAttr(job.key)}', this)">
+                  <span>${escapeHtml(job.title)}</span>
+                  <span class="match-pill">${job.match_rate}% 匹配</span>
+                </div>
+              `).join('')}
+              ${jobs.length === 0 ? '<p class="text-muted" style="font-size:0.85rem;">未指定目标岗位</p>' : ''}
+            </div>
+          </aside>
+
+          <section class="report-content" id="report-content">
+            <!-- 总分卡片 -->
+            <div class="card" style="margin-bottom: var(--space-xl);">
+              <div class="score-hero">
+                <div class="score-circle">
+                  <span class="score-val">${data.overall_score || 0}</span>
+                  <span class="score-label">总评分</span>
+                </div>
+                <div>
+                  <h1 id="job-title-display">${jobs.length > 0 ? escapeHtml(jobs[0].title) + ' - 岗位匹配报告' : '简历整体分析报告'}</h1>
+                  <p class="text-muted mt-sm">${escapeHtml(data.verdict_30s || '')}</p>
+                </div>
+              </div>
+
+              <!-- 四维指标 -->
+              <div class="stat-grid">
+                ${renderStatCard('内容完整度', stats.content_integrity)}
+                ${renderStatCard('表达清晰度', stats.expression_clarity)}
+                ${renderStatCard('经历质量', stats.experience_quality)}
+                ${renderStatCard('关键词覆盖', stats.keyword_coverage)}
+              </div>
+            </div>
+
+            <!-- 岗位匹配优势与差距 -->
+            <div id="job-detail-section">
+              ${jobs.length > 0 ? renderJobDetail(jobs[0]) : ''}
+            </div>
+
+            <!-- 问题诊断与建议 -->
+            <div class="card mt-lg">
+              <h3 style="margin-bottom: var(--space-lg);">主要问题诊断与优化建议</h3>
+              ${issues.length > 0 ? issues.map(issue => `
+                <div class="issue-item">
+                  <div class="issue-icon">!</div>
+                  <div style="flex: 1;">
+                    <p style="font-weight: 600;">${escapeHtml(issue.title || '')}</p>
+                    <p class="text-muted" style="margin: 4px 0 var(--space-sm);">${escapeHtml(issue.impact || '')}</p>
+                    <div class="code-block">
+                      <p><strong>优化前：</strong>${escapeHtml(issue.before || '')}</p>
+                      <p class="mt-sm"><strong>优化后：</strong>${escapeHtml(issue.after || '')}</p>
+                    </div>
+                  </div>
+                </div>
+              `).join('') : '<p class="text-muted">暂无明显硬伤，表现良好！</p>'}
+            </div>
+          </section>
+        </div>
+      `;
+      document.getElementById('report-root').innerHTML = html;
+    }
+
+    function renderStatCard(label, value) {
+      const pct = value || 0;
+      return `
+        <div class="stat-card">
+          <h4>${label}</h4>
+          <div style="display: flex; justify-content: space-between; font-weight: 600;">
+            <span>${pct}%</span>
+          </div>
+          <div class="stat-bar"><div class="stat-progress" style="width: ${pct}%;"></div></div>
+        </div>
+      `;
+    }
+
+    function renderJobDetail(job) {
+      if (!job) return '';
+      const advantages = job.advantages || [];
+      const gaps = job.gaps || [];
+      return `
+        <div class="grid grid-2">
+          <div class="card">
+            <h3 style="margin-bottom: var(--space-lg);">匹配优势</h3>
+            ${advantages.length > 0 ? advantages.map(a => `
+              <div class="issue-item">
+                <div class="issue-icon success">✓</div>
+                <div>
+                  <p style="font-weight: 600;">${escapeHtml(a.title || '')}</p>
+                  <p class="text-muted" style="font-size: 0.85rem;">${escapeHtml(a.desc || '')}</p>
+                </div>
+              </div>
+            `).join('') : '<p class="text-muted">暂无数据</p>'}
+          </div>
+          <div class="card">
+            <h3 style="margin-bottom: var(--space-lg);">缺失能力/关键词</h3>
+            ${gaps.length > 0 ? gaps.map(g => `
+              <div class="issue-item">
+                <div class="issue-icon">!</div>
+                <div>
+                  <p style="font-weight: 600;">${escapeHtml(g.title || '')}</p>
+                  <p class="text-muted" style="font-size: 0.85rem;">${escapeHtml(g.desc || '')}</p>
+                </div>
+              </div>
+            `).join('') : '<p class="text-muted">暂无数据</p>'}
+          </div>
+        </div>
+      `;
+    }
+
+    window.switchJob = function(key, tabEl) {
+      // 更新 tab 状态
+      document.querySelectorAll('.jd-tab').forEach(t => t.classList.remove('active'));
+      tabEl.classList.add('active');
+      activeJobKey = key;
+
+      // 找到对应 job 数据并重渲染
+      const job = (reportData.jobs || []).find(j => j.key === key);
+      const titleEl = document.getElementById('job-title-display');
+      if (titleEl && job) titleEl.textContent = job.title + ' - 岗位匹配报告';
+
+      const detailSection = document.getElementById('job-detail-section');
+      if (detailSection) detailSection.innerHTML = renderJobDetail(job);
+    };
+
+    window.downloadReport = function() {
+      if (recordId) window.open(`/api/analyze/download/report/${recordId}`, '_blank');
+    };
+
+    window.downloadDocx = function() {
+      if (recordId) window.open(`/api/analyze/download/docx/${recordId}`, '_blank');
+    };
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      const d = document.createElement('div');
+      d.textContent = String(str);
+      return d.innerHTML;
+    }
+
+    function escapeAttr(str) {
+      if (!str) return '';
+      return String(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
   </script>
 </body>

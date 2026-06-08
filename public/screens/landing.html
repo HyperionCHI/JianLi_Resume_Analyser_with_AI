@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>见历 - AI 简历分析与优化</title>
+  <meta name="description" content="上传简历，获得 AI 深度分析、岗位匹配度与可编辑优化版本">
   <link rel="stylesheet" href="../css/styles.css">
   <style>
     .hero {
@@ -33,11 +34,16 @@
       padding: var(--space-xl);
       text-align: center;
       background: var(--surface);
-      transition: border-color 0.3s;
+      transition: border-color 0.3s, background 0.3s;
       cursor: pointer;
     }
-    .upload-zone:hover {
+    .upload-zone:hover, .upload-zone.drag-over {
       border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+    }
+    .upload-zone.has-file {
+      border-color: var(--success);
+      background: color-mix(in srgb, var(--success) 5%, var(--surface));
     }
     .upload-icon {
       font-size: 3rem;
@@ -68,6 +74,8 @@
       border-radius: var(--radius-sm);
       margin-top: var(--space-sm);
       font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--fg);
     }
     .jd-textarea {
       height: 100px;
@@ -120,6 +128,70 @@
       font-weight: 500;
     }
 
+    /* Auth Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-box {
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      width: 100%;
+      max-width: 420px;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 1.2rem;
+      border: none;
+      background: none;
+      line-height: 1;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 1rem;
+      font-family: var(--font-body);
+      background: var(--surface);
+      color: var(--fg);
+      margin-bottom: var(--space-md);
+      box-sizing: border-box;
+    }
+    .modal-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .modal-error {
+      color: var(--error, #e53e3e);
+      font-size: 0.85rem;
+      margin-bottom: var(--space-sm);
+      min-height: 1.2em;
+    }
+    .modal-switch {
+      text-align: center;
+      margin-top: var(--space-md);
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .modal-switch a {
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
     /* Mobile specific */
     @media (max-width: 768px) {
       .action-content {
@@ -138,9 +210,9 @@
       <div class="logo-icon"></div>
       见历
     </div>
-    <div style="display: flex; align-items: center; gap: 20px;">
-      <span class="text-muted" style="font-size: 0.9rem;">免费额度：剩余 3 次</span>
-      <button class="btn btn-outline">登录</button>
+    <div id="nav-auth-area" style="display: flex; align-items: center; gap: 12px;">
+      <!-- 由 auth.js 动态渲染 -->
+      <span class="text-muted" style="font-size: 0.9rem;">加载中...</span>
     </div>
   </nav>
 
@@ -151,13 +223,13 @@
     </header>
 
     <div class="upload-container">
-      <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
-        <input type="file" id="fileInput" style="display: none;">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" style="display: none;" accept=".pdf,.docx,.doc,.txt,.md">
         <span class="upload-icon">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </span>
-        <h3>点击或拖拽上传简历</h3>
-        <p class="text-muted mt-sm">支持 PDF, Word, Markdown, TXT 格式</p>
+        <h3 id="upload-hint">点击或拖拽上传简历</h3>
+        <p class="text-muted mt-sm">支持 PDF, Word, Markdown, TXT 格式（最大 5MB）</p>
       </div>
 
       <div class="jd-section">
@@ -169,8 +241,8 @@
         
         <div id="jdList">
           <div class="card jd-card">
-            <input type="text" class="jd-input" placeholder="输入岗位名称 (例如: 产品经理)">
-            <textarea class="jd-input jd-textarea" placeholder="粘贴岗位描述 / JD (可选，填写后分析更精准)"></textarea>
+            <input type="text" class="jd-input jd-title" placeholder="输入岗位名称 (例如: 产品经理)">
+            <textarea class="jd-input jd-textarea jd-desc" placeholder="粘贴岗位描述 / JD (可选，填写后分析更精准)"></textarea>
           </div>
         </div>
       </div>
@@ -183,31 +255,162 @@
         <p style="font-size: 0.9rem; font-weight: 500;">本次分析预计消耗</p>
         <p class="text-muted" style="font-size: 0.8rem;" id="costDisplay">普通分析 10 点 + 1 个岗位 10 点 = 共 20 点</p>
       </div>
-      <button class="btn btn-primary btn-analyze" style="padding: 14px 40px; font-size: 1.1rem;" onclick="location.href='analysis.html'">
+      <button class="btn btn-primary btn-analyze" id="analyze-btn" style="padding: 14px 40px; font-size: 1.1rem;" onclick="startAnalysis()">
         分析我的简历
       </button>
     </div>
   </div>
 
-  <script>
-    function addJD() {
+  <!-- Auth Modal -->
+  <div class="modal-overlay" id="auth-modal" onclick="handleModalOutsideClick(event)">
+    <div class="modal-box">
+      <button class="modal-close" onclick="hideAuthModal()">✕</button>
+      <h2 id="modal-title" style="margin-bottom: var(--space-lg);">登录</h2>
+
+      <!-- 登录表单 -->
+      <div id="login-form">
+        <input type="email" id="login-email" class="modal-input" placeholder="邮箱地址">
+        <input type="password" id="login-password" class="modal-input" placeholder="密码">
+        <div class="modal-error" id="login-error"></div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="handleLogin()">登 录</button>
+        <div class="modal-switch">还没有账号？<a onclick="showAuthModal('register')">立即注册</a></div>
+      </div>
+
+      <!-- 注册表单 -->
+      <div id="register-form" style="display: none;">
+        <input type="email" id="register-email" class="modal-input" placeholder="邮箱地址">
+        <input type="password" id="register-password" class="modal-input" placeholder="密码（至少 6 位）">
+        <div class="modal-error" id="register-error"></div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="handleRegister()">注 册</button>
+        <div class="modal-switch">已有账号？<a onclick="showAuthModal('login')">直接登录</a></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initAuth, showAuthModal, hideAuthModal, handleLogin, handleRegister, handleLogout } from '../js/auth.js';
+
+    // 挂载到 window 以供 inline onclick 调用
+    window.showAuthModal = showAuthModal;
+    window.hideAuthModal = hideAuthModal;
+    window.handleLogin = handleLogin;
+    window.handleRegister = handleRegister;
+    window.handleLogout = handleLogout;
+
+    let authStatus = null;
+
+    // 初始化认证状态
+    initAuth({ onStatusLoaded: (status) => { authStatus = status; } });
+
+    // 点击 modal 外部关闭
+    window.handleModalOutsideClick = function(event) {
+      if (event.target === document.getElementById('auth-modal')) {
+        hideAuthModal();
+      }
+    };
+
+    // 添加 JD 卡片
+    window.addJD = function() {
       const list = document.getElementById('jdList');
       const div = document.createElement('div');
       div.className = 'card jd-card';
       div.innerHTML = `
         <span class="jd-remove" onclick="this.parentElement.remove(); updateCost();">删除</span>
-        <input type="text" class="jd-input" placeholder="输入岗位名称">
-        <textarea class="jd-input jd-textarea" placeholder="粘贴岗位描述 / JD"></textarea>
+        <input type="text" class="jd-input jd-title" placeholder="输入岗位名称">
+        <textarea class="jd-input jd-textarea jd-desc" placeholder="粘贴岗位描述 / JD"></textarea>
       `;
       list.appendChild(div);
       updateCost();
-    }
+    };
 
-    function updateCost() {
+    // 更新费用显示
+    window.updateCost = function() {
       const count = document.querySelectorAll('.jd-card').length;
       const total = 10 + count * 10;
       document.getElementById('costDisplay').textContent = `普通分析 10 点 + ${count} 个岗位 ${count * 10} 点 = 共 ${total} 点`;
-    }
+    };
+
+    // 文件选择处理
+    const fileInput = document.getElementById('fileInput');
+    const uploadZone = document.getElementById('upload-zone');
+    
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) {
+        uploadZone.classList.add('has-file');
+        document.getElementById('upload-hint').textContent = `已选择：${fileInput.files[0].name}`;
+      }
+    });
+
+    // 拖拽上传
+    uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+    uploadZone.addEventListener('dragleave', () => { uploadZone.classList.remove('drag-over'); });
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+        uploadZone.classList.add('has-file');
+        document.getElementById('upload-hint').textContent = `已选择：${file.name}`;
+      }
+    });
+
+    // 开始分析
+    window.startAnalysis = async function() {
+      const file = fileInput.files[0];
+      if (!file) {
+        alert('请先选择简历文件');
+        return;
+      }
+
+      // 收集 JDs
+      const jds = [];
+      document.querySelectorAll('.jd-card').forEach(card => {
+        const title = card.querySelector('.jd-title')?.value?.trim();
+        const desc = card.querySelector('.jd-desc')?.value?.trim();
+        if (title) jds.push({ title, description: desc || '' });
+      });
+
+      const btn = document.getElementById('analyze-btn');
+      btn.disabled = true;
+      btn.textContent = '上传中...';
+
+      const formData = new FormData();
+      formData.append('resume', file);
+      if (jds.length > 0) formData.append('jds', JSON.stringify(jds));
+
+      try {
+        const res = await fetch('/api/analyze/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          // 将 recordId 存入 sessionStorage 后跳转分析等待页
+          sessionStorage.setItem('currentRecordId', data.recordId);
+          location.href = 'analysis.html';
+        } else if (res.status === 403) {
+          btn.disabled = false;
+          btn.textContent = '分析我的简历';
+          if (data.message === '积分不足') {
+            alert('积分不足，请充值后重试。');
+          } else {
+            // 免费额度耗尽，提示注册
+            showAuthModal('register');
+          }
+        } else {
+          btn.disabled = false;
+          btn.textContent = '分析我的简历';
+          alert('上传失败：' + (data.message || '未知错误'));
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '分析我的简历';
+        alert('网络错误，请检查连接后重试。');
+      }
+    };
   </script>
 </body>
 </html>

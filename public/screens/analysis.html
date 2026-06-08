@@ -54,6 +54,10 @@
       opacity: 1;
       background: var(--bg);
     }
+    .step-item.error {
+      opacity: 1;
+      border-color: var(--error, #e53e3e);
+    }
     .step-icon {
       width: 24px;
       height: 24px;
@@ -72,32 +76,38 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    .error-box {
+      background: #fff5f5;
+      border: 1px solid #feb2b2;
+      border-radius: var(--radius-md);
+      padding: var(--space-lg);
+      margin-top: var(--space-xl);
+      display: none;
+    }
   </style>
 </head>
 <body>
   <div class="analysis-container">
-    <div class="loading-pulse">
+    <div class="loading-pulse" id="main-pulse">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>
     </div>
-    <h2>正在深度分析您的简历...</h2>
-    <p class="text-muted mt-sm">这通常需要 10-20 秒，请稍候</p>
+    <h2 id="main-status">正在深度分析您的简历...</h2>
+    <p class="text-muted mt-sm" id="main-sub">这通常需要 10-20 秒，请稍候</p>
 
     <div class="step-list">
       <div class="step-item done" id="step1">
         <div class="step-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <span>正在解析简历内容...</span>
+        <span>简历文件上传成功</span>
       </div>
       <div class="step-item active" id="step2">
-        <div class="step-icon">
-          <div class="spinner"></div>
-        </div>
-        <span>正在分析简历结构与排版...</span>
+        <div class="step-icon"><div class="spinner"></div></div>
+        <span>正在解析简历内容...</span>
       </div>
       <div class="step-item" id="step3">
         <div class="step-icon"></div>
-        <span>正在提取核心能力关键词...</span>
+        <span>正在进行 AI 深度分析...</span>
       </div>
       <div class="step-item" id="step4">
         <div class="step-icon"></div>
@@ -108,34 +118,120 @@
         <span>正在生成针对性优化建议...</span>
       </div>
     </div>
+
+    <div class="error-box" id="error-box">
+      <p style="font-weight: 600; color: #c53030;">😞 分析失败</p>
+      <p class="text-muted" id="error-msg" style="margin-top: 8px;">请返回重试。</p>
+      <button class="btn btn-outline" style="margin-top: 16px;" onclick="location.href='landing.html'">返回重试</button>
+    </div>
   </div>
 
   <script>
-    const steps = ['step2', 'step3', 'step4', 'step5'];
-    let current = 0;
+    const POLL_INTERVAL = 2000; // 每 2 秒轮询一次
+    const MAX_POLLS = 60; // 最多轮询 120 秒
+    let pollCount = 0;
+    let pollingTimer = null;
+    let uiStepTimer = null;
+    let currentUiStep = 2;
 
-    const interval = setInterval(() => {
-      if (current < steps.length) {
-        const prevId = current === 0 ? 'step1' : steps[current - 1];
-        const currId = steps[current];
-        
-        // Mark current as active
-        document.getElementById(currId).className = 'step-item active';
-        document.getElementById(currId).querySelector('.step-icon').innerHTML = '<div class="spinner"></div>';
-        
-        // Mark previous as done
-        const prev = document.getElementById(prevId);
+    const checkIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+    // 获取上次上传的 recordId
+    const recordId = sessionStorage.getItem('currentRecordId');
+
+    if (!recordId) {
+      // 没有 recordId，可能直接访问本页面，回退到首页
+      location.href = 'landing.html';
+    } else {
+      startPolling();
+      startUiAnimation();
+    }
+
+    function startUiAnimation() {
+      // 每 3 秒推进 UI 步骤动画（与真实状态分离，只是视觉动效）
+      uiStepTimer = setInterval(() => {
+        if (currentUiStep <= 4) {
+          activateStep(currentUiStep);
+          currentUiStep++;
+        } else {
+          clearInterval(uiStepTimer);
+        }
+      }, 3000);
+    }
+
+    function activateStep(stepNum) {
+      const prev = document.getElementById(`step${stepNum}`);
+      if (prev) {
         prev.className = 'step-item done';
-        prev.querySelector('.step-icon').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-        
-        current++;
-      } else {
-        clearInterval(interval);
-        setTimeout(() => {
-          location.href = 'report.html';
-        }, 1000);
+        prev.querySelector('.step-icon').innerHTML = checkIcon;
       }
-    }, 2000);
+      const next = document.getElementById(`step${stepNum + 1}`);
+      if (next) {
+        next.className = 'step-item active';
+        next.querySelector('.step-icon').innerHTML = '<div class="spinner"></div>';
+      }
+    }
+
+    function startPolling() {
+      poll();
+    }
+
+    async function poll() {
+      if (pollCount >= MAX_POLLS) {
+        showError('分析超时，请返回重新上传。');
+        return;
+      }
+      pollCount++;
+
+      try {
+        const res = await fetch(`/api/analyze/status/${recordId}`);
+        if (!res.ok) {
+          if (res.status === 404) {
+            showError('分析记录不存在，请返回重试。');
+            return;
+          }
+        }
+        const data = await res.json();
+
+        if (data.status === 'completed') {
+          // 分析完成，存储结果后跳转报告页
+          clearTimeout(pollingTimer);
+          clearInterval(uiStepTimer);
+          // 快速完成剩余 UI 步骤
+          for (let i = currentUiStep; i <= 5; i++) {
+            const el = document.getElementById(`step${i}`);
+            if (el) {
+              el.className = 'step-item done';
+              el.querySelector('.step-icon').innerHTML = checkIcon;
+            }
+          }
+          document.getElementById('main-status').textContent = '分析完成！正在跳转...';
+          document.getElementById('main-sub').textContent = '即将为您展示详细报告';
+          sessionStorage.setItem('analysisResult', JSON.stringify(data.result));
+          setTimeout(() => { location.href = 'report.html'; }, 800);
+        } else if (data.status === 'failed') {
+          clearTimeout(pollingTimer);
+          clearInterval(uiStepTimer);
+          const errMsg = data.result?.error || '分析失败，请返回重试。';
+          showError(errMsg);
+        } else {
+          // pending 或 processing，继续轮询
+          pollingTimer = setTimeout(poll, POLL_INTERVAL);
+        }
+      } catch (err) {
+        console.error('[Polling] Network error:', err);
+        pollingTimer = setTimeout(poll, POLL_INTERVAL);
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('main-pulse').style.display = 'none';
+      document.getElementById('main-status').textContent = '分析遇到问题';
+      document.getElementById('main-sub').textContent = '';
+      const errBox = document.getElementById('error-box');
+      document.getElementById('error-msg').textContent = msg;
+      errBox.style.display = 'block';
+    }
   </script>
 </body>
 </html>
